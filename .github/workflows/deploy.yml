@@ -33,7 +33,6 @@ jobs:
         uses: skywarth/vite-github-pages-deployer@v1.5.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          public_base_path: /undangan-pentahbisan-gereja-gbi-angkatan-66/  # Replace with your repository name
           build_path: ./dist
           install_phase_node_env: dev
           build_phase_node_env: production
