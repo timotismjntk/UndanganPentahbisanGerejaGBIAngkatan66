@@ -7,8 +7,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Heart, MessageCircle, Users, UserCheck, UserX } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { db } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { getDb } from '@/lib/firebase';
 
 interface Message {
   id: string;
@@ -27,16 +26,31 @@ const RSVPForm = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    const q = query(collection(db, 'rsvp-messages'), orderBy('timestamp', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fetchedMessages: Message[] = [];
-      snapshot.forEach((doc) => {
-        fetchedMessages.push({ id: doc.id, ...doc.data() } as Message);
-      });
-      setMessages(fetchedMessages);
-    });
+    let unsubscribe: () => void;
 
-    return () => unsubscribe();
+    const setupFirestore = async () => {
+      try {
+        const { collection, onSnapshot, orderBy, query } = await import('firebase/firestore');
+        const db = await getDb();
+        const q = query(collection(db, 'rsvp-messages'), orderBy('timestamp', 'desc'));
+        
+        unsubscribe = onSnapshot(q, (snapshot) => {
+          const fetchedMessages: Message[] = [];
+          snapshot.forEach((doc) => {
+            fetchedMessages.push({ id: doc.id, ...doc.data() } as Message);
+          });
+          setMessages(fetchedMessages);
+        });
+      } catch (error) {
+        console.error('Failed to setup Firestore:', error);
+      }
+    };
+
+    setupFirestore();
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -53,6 +67,9 @@ const RSVPForm = () => {
 
     setLoading(true);
     try {
+      const { collection, addDoc } = await import('firebase/firestore');
+      const db = await getDb();
+      
       await addDoc(collection(db, 'rsvp-messages'), {
         name: name.trim(),
         message: message.trim(),
@@ -69,6 +86,7 @@ const RSVPForm = () => {
       setMessage('');
       setAttendance('yes');
     } catch (error) {
+      console.error('Error submitting:', error);
       toast({
         title: "Gagal mengirim",
         description: "Terjadi kesalahan, silakan coba lagi.",
